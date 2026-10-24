@@ -1,0 +1,46 @@
+name: iOS unsigned build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+env:
+  IS_GITHUB_ACTIONS: 1
+  CHANNEL: "dev"
+  FLUTTER_VERSION: '3.38.5'
+
+jobs:
+  build-ipa:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: subosito/flutter-action@v2.21.0
+        with:
+          flutter-version: '3.38.5'
+          channel: 'stable'
+          cache: true
+
+      - name: Prepare (core, pods, codegen)
+        run: |
+          make ios-prepare
+
+      - name: Build unsigned iOS app
+        run: |
+          flutter build ios --release --no-codesign
+          ls -la build/ios/iphoneos/
+
+      - name: Package unsigned .ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qry Hiddify-iOS-unsigned.ipa Payload
+          ls -la Hiddify-iOS-unsigned.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Hiddify-iOS-unsigned-ipa
+          path: Hiddify-iOS-unsigned.ipa
+          retention-days: 30
